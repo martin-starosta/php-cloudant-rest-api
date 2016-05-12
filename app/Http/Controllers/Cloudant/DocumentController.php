@@ -75,12 +75,11 @@ class DocumentController extends CloudantController
             return false;
         }
         try {
-            $prevRevision = json_decode($this->document($id, $database));
+            $prevRevision = json_decode($this->document($id, $database), true);
 
-            $attributes = $request->data;
-            $attributes['_id'] = $prevRevision->_id;
-            $attributes['_rev'] = $prevRevision->_rev;
-            $response = $this->client->request('POST', $database, [
+            $attributes = $this->addDiff($prevRevision, $request->data);
+
+            $response = $this->client->request('PUT', $database . '/' . $id, [
                 'verify' => false,
                 'json' => $attributes
             ]);
@@ -99,6 +98,22 @@ class DocumentController extends CloudantController
     {
         //TODO: To be implemented.
         ;
+    }
+
+    private function addDiff($sourceArray, $targetArray) {
+        foreach($targetArray as $key => $value) {
+            if(!isset($sourceArray[$key])) {
+                $sourceArray[$key] = $value;
+            } else {
+                if(is_array($value)) {
+                    $sourceArray[$key] = $this->addDiff($sourceArray[$key], $targetArray[$key]);
+                } else {
+                    $sourceArray[$key] = $value;
+                }
+
+            }
+        }
+        return $sourceArray;
     }
 
     public function listDocuments($database) {
